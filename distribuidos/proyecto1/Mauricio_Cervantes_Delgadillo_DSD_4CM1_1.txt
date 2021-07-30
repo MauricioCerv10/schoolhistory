@@ -1,0 +1,338 @@
+/*Practica 1*/
+
+/*Ejercicio 1*/
+---------------------------------------------------------------------------------------------------------------------------------------------
+#include <bits/stdc++.h>
+using namespace std;
+
+void  algoritmoB(double n){
+	double b = n, h = 0;
+
+    	while ((b-h) > 0.000001) {
+        	b = (h + b) / 2;
+        	h = n / b;
+    	}
+    	cout<<fixed<<setprecision(4)<<b<<endl;
+}
+
+int main(){
+	double n;
+	cin>>n;
+	algoritmoB(n);
+}
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*Ejercicio 2*/
+---------------------------------------------------------------------------------------------------------------------------------------------
+#include <bits/stdc++.h>
+using namespace std;
+
+void caidaL(double t){
+        double res = (9.81 * pow(t,2))/2;
+        cout<<res<<endl;
+}
+
+
+int main(){
+	double t;
+	cin>>t;
+	caidaL(t);
+}
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*Ejercicio 3*/
+---------------------------------------------------------------------------------------------------------------------------------------------
+#include <bits/stdc++.h>
+using namespace std;
+
+void calcuTiempo(int t){
+        int hrs = t/3600;
+	t -= hrs*3600;
+	int mins = t/60;
+	int segs = (t-mins*60);
+        cout<<hrs<<" horas "<<mins<<" minutos "<<segs<<" segundos\n";
+}
+
+
+int main(){
+	int t;
+	cin>>t;
+	calcuTiempo(t);
+}
+---------------------------------------------------------------------------------------------------------------------------------------------
+*********************************************************************************************************************************************
+/*Practica 4*/
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*Coordenada.h*/
+
+#ifndef COORDENADA_H_
+#define COORDENADA_H_
+class Coordenada
+{
+private:
+        double x;
+        double y;
+	double z;
+public:
+        Coordenada(double = 0, double = 0, double = 0);
+        double obtenerX();
+        double obtenerY();
+	double obtenerZ();
+};
+#endif
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*Coordenada.cpp*/
+
+#include "Coordenada.h"
+#include <iostream>
+using namespace std;
+
+Coordenada::Coordenada(double xx, double yy, double zz) : x(xx), y(yy), z(zz)
+{ }
+
+double Coordenada::obtenerX()
+{
+        return x;
+}
+
+double Coordenada::obtenerY()
+{
+        return y;
+}
+
+double Coordenada::obtenerZ(){
+	return z;
+}
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*Rectangulo.h*/
+
+#include "Coordenada.h"
+#ifndef RECTANGULO_H_
+#define RECTANGULO_H_
+class Rectangulo
+{
+private:
+        Coordenada superiorIzq;
+        Coordenada inferiorDer;
+public:
+        Rectangulo();
+        Rectangulo(double xSupIzq, double ySupIzq, double zSupIzq, double xInfDer, double yInfDer, double zInfDer);
+        void imprimeEsq();
+	double area();
+	double ancho();
+	double alto();
+        Coordenada obtieneSupIzq();
+        Coordenada obtieneInfDer();
+};
+#endif
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+/*Rectangulo.cpp*/
+
+#include "Rectangulo.h"
+#include <iostream>
+using namespace std;
+
+Rectangulo::Rectangulo() : superiorIzq(0,0,0), inferiorDer(0,0,0)
+{ }
+
+Rectangulo::Rectangulo(double xSupIzq, double ySupIzq, double zSupIzq, double xInfDer, double yInfDer, double zInfIzq)
+:superiorIzq(xSupIzq, ySupIzq, zSupIzq), inferiorDer(xInfDer, yInfDer,zInfIzq)
+{ }
+
+void Rectangulo::imprimeEsq()
+{
+	cout << "x = " << superiorIzq.obtenerX() << " y = " << superiorIzq.obtenerY() <<" z = " <<  superiorIzq.obtenerZ() << endl;
+	cout << "x = " << inferiorDer.obtenerX() << " y = " << inferiorDer.obtenerY() <<" z = " << inferiorDer.obtenerZ()<< endl; 
+	cout << "x = " << inferiorDer.obtenerX() << " y = " << inferiorDer.obtenerY() <<" z = " << superiorIzq.obtenerZ()<< endl; 
+	cout << "x = " << superiorIzq.obtenerX() << " y = " << superiorIzq.obtenerY() <<" z = " << inferiorDer.obtenerZ()<< endl; 
+}
+
+double Rectangulo::area(){
+	double al = alto();
+        double an = ancho();
+	return an * al;
+}
+
+double Rectangulo::ancho(){
+	double res = 0;
+	if(obtieneInfDer().obtenerY() == obtieneSupIzq().obtenerY()) 
+		res = abs(obtieneInfDer().obtenerX() - obtieneSupIzq().obtenerX());
+	else 
+		res = abs(obtieneInfDer().obtenerY() - obtieneSupIzq().obtenerY());
+	
+	return res;
+}
+double Rectangulo::alto(){
+	double res = 0;
+        if(obtieneInfDer().obtenerY() == obtieneSupIzq().obtenerY()) 
+                res = abs(obtieneInfDer().obtenerZ() - obtieneSupIzq().obtenerZ());
+        else if(obtieneInfDer().obtenerZ() == obtieneSupIzq().obtenerZ())
+                res = abs(obtieneInfDer().obtenerX() - obtieneSupIzq().obtenerX());
+	else 
+		res = abs(obtieneInfDer().obtenerZ() - obtieneSupIzq().obtenerZ());
+        
+        return res;
+
+}
+
+Coordenada Rectangulo::obtieneSupIzq()
+{
+	return superiorIzq;
+}
+
+Coordenada Rectangulo::obtieneInfDer()
+{
+	return inferiorDer;
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*Ortaedro.h*/
+
+#include "Rectangulo.h"
+#ifndef ORTAEDRO_H_
+#define ORTAEDRO_H_
+class Ortaedro
+{
+private:
+        Rectangulo tSup;
+        Rectangulo tInf;
+        Rectangulo l1;
+        Rectangulo l2;
+        Rectangulo l3;
+        Rectangulo l4;
+public:
+        Ortaedro();
+        Ortaedro(double xtSupS, double ytSupS, double ztSupS, double xtSupI, double ytSupI, double ztSupI,
+		double xtInfS, double ytInfS, double ztInfS, double xtInfI, double ytInfI, double ztInfI, 	
+		double xl1S, double yl1S, double zl1S, double xl1I, double yl1I, double zl1I,
+		double xl2S, double yl2S, double zl2S,double xl2I, double yl2I, double zl2I,
+		double xl3S, double yl3S, double zl3S,double xl3I, double yl3I, double zl3I,
+		double xl4S, double yl4S, double zl4S,double xl4I, double yl4I, double zl4I
+	);
+        void imprimeVertices();//imprime esquinas de las dos tapas
+	double areaO();
+	double volumen();
+        //Coordenada obtieneSupIzq();
+        //Coordenada obtieneInfDer();
+};
+#endif
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*Ortaedro.cpp*/
+
+//#include "Rectangulo.h"
+#include "Ortaedro.h"
+#include <iostream>
+using namespace std;
+
+Ortaedro::Ortaedro() : tSup(0,0,0,0,0,0), tInf(0,0,0,0,0,0), l1(0,0,0,0,0,0), l2(0,0,0,0,0,0), l3(0,0,0,0,0,0), l4(0,0,0,0,0,0)
+{ }
+
+Ortaedro::Ortaedro(double xtSupS, double ytSupS, double ztSupS, double xtSupI, double ytSupI, double ztSupI,
+		double xtInfS, double ytInfS, double ztInfS, double xtInfI, double ytInfI, double ztInfI, 	
+		double xl1S, double yl1S, double zl1S, double xl1I, double yl1I, double zl1I,
+		double xl2S, double yl2S, double zl2S,double xl2I, double yl2I, double zl2I,
+		double xl3S, double yl3S, double zl3S,double xl3I, double yl3I, double zl3I,
+		double xl4S, double yl4S, double zl4S,double xl4I, double yl4I, double zl4I)
+:tSup(xtSupS,ytSupS,ztSupS,xtSupI,ytSupI,ztSupI), 
+	tInf(xtInfS,ytInfS,ztInfS,xtInfI,ytInfI,ztInfI), 
+	l1(xl1S,yl1S,zl1S,xl1I,yl1I,zl1I),
+	l2(xl2S,yl2S,zl2S,xl2I,yl2I,zl2I),
+	l3(xl3S,yl3S,zl3S,xl3I,yl3I,zl3I),
+	l4(xl4S,yl4S,zl4S,xl4I,yl4I,zl4I)
+{ }
+
+void Ortaedro::imprimeVertices()
+{
+	tSup.imprimeEsq();
+        tInf.imprimeEsq(); 
+}
+
+double Ortaedro::areaO(){
+	double res = 0;
+	res += tSup.area();
+        res += tInf.area();
+        res += l1.area();
+        res += l2.area();
+        res += l3.area();
+        res += l4.area(); 
+	return res;
+}
+
+double Ortaedro::volumen(){
+	double res = 0;
+	res = tSup.ancho() * tSup.alto() * l1.ancho();
+	return res;
+}
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*main.cpp*/
+
+#include "Rectangulo.h"
+#include "Coordenada.h"
+#include "Ortaedro.h"
+#include <iostream>
+using namespace std;
+
+int main()
+{
+        Ortaedro ort(   3, 2, 3, 0, 2, 0, // rectangulo superior
+			3, 0, 3, 0, 0, 0,// rectangulo inferior
+			0, 2, 3, 0, 0, 0,//lado uno
+			3, 2, 3, 0, 0, 3,// lado dos
+			3, 2, 3, 3, 0, 0,// lado tres
+			3, 2, 0, 0, 0, 0// lado cuatro
+	);
+
+        cout << "Calculando el área de un rectángulo dadas sus vertices:\n";
+        ort.imprimeVertices();
+        cout << "El área del ortaedro es = " << ort.areaO() << endl;
+        cout << "El volumen del ortaedro es = " << ort.volumen() << endl;
+        return 0;
+}
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+*********************************************************************************************************************************************
+/*Practica 6*/
+---------------------------------------------------------------------------------------------------------------------------------------------
+/*sieve.cpp*/
+
+#include <bits/stdc++.h>
+using namespace std;
+
+typedef vector<int> vi;
+typedef long long ll;
+
+ll _sieve_size;
+bitset<10000010> bs;
+vi primes;
+
+void sieve(ll upperbound){
+	_sieve_size = upperbound+1;
+	bs.set();
+	bs[0] = bs[1] = 0;
+	for(ll i = 2; i <= _sieve_size; i++){
+		if(bs[i]){
+			for(ll j = i*i; j <= _sieve_size; j += i) bs[j] = 0;
+			primes.push_back(i);
+		}
+	}
+} 
+
+int main(){
+	ll n;cin>>n;
+	sieve(n);
+	for(int i = 0; i<primes.size(); i++) cout<<primes[i]<<endl;
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+ *********************************************************************************************************************************************

@@ -1,0 +1,103 @@
+<html>
+	<head>
+		<title>Mongoose REST</title>
+		<script src="jquery.min.js"></script>
+	</head>
+	<body style="font-family:arial;">
+		<div style="text-align:center">
+			<h1>Visualizador de terminales remotas</h1>
+			<form method=get id="form-search" class="block">
+				<h2>Introduzca cadena</h2>
+				<input type="text" id="search" name="search"><br><br>
+				<button id="send" >Enviar a Mongoose</button>
+			</form>
+			<div class="block" id="search-res"></div>
+		</div>
+	</body>
+</html>
+
+<script>
+	$("#send").hide();
+	setTimeout(function () { $("#send").click(); },500);
+	$("#form-search").hide();
+	$('#form-search').submit(function(){
+		$("#search-res").show();
+		$.ajax({
+			type: "POST",
+			url: "/search",
+			data:{
+				query:$("#search").val()
+			},
+			success: function(data){
+				$("#search-res").empty();
+				console.log("recibi nueva imagen");
+				var num = 0;
+				var idx = 0;
+				var cero = "0";
+				var dataS = data.toString();
+				var t = 0;
+				while(dataS.charAt(idx) != '$'){
+					t = t*10 + (dataS.charCodeAt(idx) - cero.charCodeAt(0));
+					idx = idx + 1;
+				}
+				t = t*1000;
+				idx = idx+1;
+				while(dataS.charAt(idx) != '$'){
+					num = num*10 + (dataS.charCodeAt(idx) - cero.charCodeAt(0));
+					idx = idx + 1;
+				}
+				idx = idx+1;
+				for(var i = 0;i<num;i++){
+					var nombre = "";
+					var etiqueta = "";
+					while(dataS.charAt(idx) != '$'){
+						if(dataS.charAt(idx) == '.') nombre = nombre + '-';
+						else nombre = nombre + dataS.charAt(idx);
+						etiqueta = etiqueta + dataS.charAt(idx);
+						idx = idx + 1;
+					}
+					idx = idx + 1;
+					var filen = nombre.concat(".jpg");
+					$("#search-res").append("<img src='"+filen+"'/>");
+					$("#search-res").append(etiqueta);
+				}
+				setTimeout(function () { location.reload(true); },t);							
+			}
+		});
+		return false;
+	});
+	
+</script>
+
+<style>
+	h1{
+		color:#009D9D;
+	}
+	body{
+		background-color:#004242;
+	}
+	.block{
+		background-color:#006D6D;
+		padding:20px;
+		margin-left:25%;
+		margin-right:25%;
+		border-radius:10px;
+	}
+	button{
+		background-color:#005959;
+		border:0;
+		padding:10px;
+		border-radius:10px;
+		color:#009D9D;
+	}
+	#search{
+		height:40px;
+		font-size:20px;
+		width:300px;
+		border-radius:10px;
+	}
+	img{
+		width:100%;
+		height:400px;
+	}
+</style>

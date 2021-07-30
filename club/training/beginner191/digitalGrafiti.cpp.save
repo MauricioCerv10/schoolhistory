@@ -1,0 +1,26 @@
+#include <bits/stdc++.h>
+using namespace std;
+char grid[15][15];
+
+int numOfV(int x, int y){
+	int vertex = 0;
+	
+	//reviar los cuatro casos mas que me faltan de vertices
+	if(grid[x-1][y] != '#' && grid[x+1][y] != '#' && grid[x][y-1] != '#') vertex += 2;
+	if(grid[x-1][y] != '#' && grid[x+1][y] != '#' && grid[x][y+1] != '#') vertex += 2;
+	if(grid[x][y+1] == '#' && grid[x+1][y] == '#' && grid[x+1][y+1] != '#') vertex++;
+	if(grid[x-1][y] == '#' && grid[x][y+1] == '#' && grid[x+1][y+1] != '#') vertex++;
+	
+	return vertex;
+}
+
+int main(){
+	int n,w; cin>>n>>w;
+	int vertexs = 0;
+	for(int i = 1; i<n-1; i++){
+		for(int j = 1; j<w-1; j++){
+			if(blackPts(i,j)) vertexs++;
+		}
+	}
+	cout<<vertexs<<"\n";
+}

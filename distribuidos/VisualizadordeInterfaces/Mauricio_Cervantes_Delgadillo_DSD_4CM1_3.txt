@@ -1,0 +1,615 @@
+------------------------------------------------------------------------------------------------------------------------------------------------}
+/*MakeFile*/
+all: servidor server
+server: serverHTTP.cpp mongoose.c UDPClient.o
+	g++ serverHTTP.cpp mongoose.c PaqueteDatagrama.o SocketDatagrama.o UDPClient.o -o server
+servidor: programa9-1.cpp PaqueteDatagrama.o SocketDatagrama.o
+	g++ programa9-1.cpp PaqueteDatagrama.o SocketDatagrama.o -o servidor
+UDPClient.o: UDPClient.cpp PaqueteDatagrama.o SocketDatagrama.o
+	g++ UDPClient.cpp -c
+SocketDatagrama.o: SocketDatagrama.cpp
+	g++ SocketDatagrama.cpp -c
+PaqueteDatagrama.o: PaqueteDatagrama.cpp
+	g++ PaqueteDatagrama.cpp -c
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*index.html*/
+<html>
+	<head>
+		<title>Visualizador</title>
+		<script src="jquery.min.js"></script>
+	</head>
+	<body style="font-family:arial;">
+		<div style="text-align:center">
+			<h1>Visualizador de terminales remotas</h1>
+			<form method=get id="form-search" class="block">
+				<h2>Introduzca cadena</h2>
+				<input type="text" id="search" name="search"><br><br>
+				<button id="send" >Enviar a Mongoose</button>
+			</form>
+			<div class="block" id="search-res"></div>
+		</div>
+	</body>
+</html>
+
+<script>
+	$("#send").hide();
+	setTimeout(function () { $("#send").click(); },500);
+	$("#form-search").hide();
+	$('#form-search').submit(function(){
+		$("#search-res").show();
+		$.ajax({
+			type: "POST",
+			url: "/search",
+			data:{
+				query:$("#search").val()
+			},
+			success: function(data){
+				$("#search-res").empty();
+				console.log("recibi nueva imagen");
+				var num = 0;
+				var idx = 0;
+				var cero = "0";
+				var dataS = data.toString();
+				var t = 0;
+				while(dataS.charAt(idx) != '$'){
+					t = t*10 + (dataS.charCodeAt(idx) - cero.charCodeAt(0));
+					idx = idx + 1;
+				}
+				t = t*1000;
+				idx = idx+1;
+				while(dataS.charAt(idx) != '$'){
+					num = num*10 + (dataS.charCodeAt(idx) - cero.charCodeAt(0));
+					idx = idx + 1;
+				}
+				idx = idx+1;
+				for(var i = 0;i<num;i++){
+					var nombre = "";
+					var etiqueta = "";
+					while(dataS.charAt(idx) != '$'){
+						if(dataS.charAt(idx) == '.') nombre = nombre + '-';
+						else nombre = nombre + dataS.charAt(idx);
+						etiqueta = etiqueta + dataS.charAt(idx);
+						idx = idx + 1;
+					}
+					idx = idx + 1;
+					var filen = nombre.concat(".jpg");
+					$("#search-res").append("<img src='"+filen+"'/>");
+					$("#search-res").append(etiqueta);
+				}
+				setTimeout(function () { location.reload(true); },t);							
+			}
+		});
+		return false;
+	});
+	
+</script>
+
+<style>
+	h1{
+		color:#009D9D;
+	}
+	body{
+		background-color:#004242;
+	}
+	.block{
+		background-color:#006D6D;
+		padding:20px;
+		margin-left:25%;
+		margin-right:25%;
+		border-radius:10px;
+	}
+	button{
+		background-color:#005959;
+		border:0;
+		padding:10px;
+		border-radius:10px;
+		color:#009D9D;
+	}
+	#search{
+		height:40px;
+		font-size:20px;
+		width:300px;
+		border-radius:10px;
+	}
+	img{
+		width:100%;
+		height:400px;
+	}
+</style>
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*PaqueteDatagrama.cpp*/
+#include "PaqueteDatagrama.h"
+#include <iostream>
+#include <string.h>
+
+using namespace std;
+
+PaqueteDatagrama::PaqueteDatagrama(char* data_, unsigned int longitude_, char* address_, int port_){
+	strcpy(ip,address_);
+	datos = new char[longitude_];
+	memcpy(datos, data_, longitude_);
+	longitud = longitude_;
+	puerto = port_;
+}
+
+PaqueteDatagrama::PaqueteDatagrama(unsigned int longitude_){
+	longitud = longitude_;
+	datos = new char[longitude_];
+}
+
+PaqueteDatagrama::~PaqueteDatagrama(){
+	delete []datos;
+}
+
+char* PaqueteDatagrama::obtieneDireccion(){return ip;}
+unsigned int PaqueteDatagrama::obtieneLongitud(){return longitud;}
+char* PaqueteDatagrama::obtieneDatos(){return datos;}
+int PaqueteDatagrama::obtienePuerto(){return puerto;}
+
+void PaqueteDatagrama::inicializaPuerto(int port_){puerto = port_; return;}
+void PaqueteDatagrama::inicializaIp(char* address_){strcpy(ip,address_);}
+void PaqueteDatagrama::inicializaDatos(char* data_){memcpy(datos, data_, longitud);}
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*PaqueteDatagrama.h*/
+#ifndef PAQUETEDATAGRAMA_H_
+#define PAQUETEDATAGRAMA_H_
+
+class PaqueteDatagrama{
+	private:
+		char *datos;			//Almacena los datos
+		char ip[16];			//Almacena la IP
+		unsigned int longitud;	//Almacena la longitude de la cadena de datos
+		int puerto;				//Almacena el puerto
+	public:
+		PaqueteDatagrama(char *data_, unsigned int longitude_, char* address_, int port_);
+		PaqueteDatagrama(unsigned int );
+		~PaqueteDatagrama();
+		char *obtieneDireccion();
+		unsigned int obtieneLongitud();
+		int obtienePuerto();
+		char *obtieneDatos();
+		void inicializaPuerto(int);
+		void inicializaIp(char *);
+		void inicializaDatos(char *);
+};
+
+#endif
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*programa9-1.cpp*/
+#include <iostream>
+#include <math.h>
+#include <arpa/inet.h>
+#include "PaqueteDatagrama.h"
+#include "SocketDatagrama.h"
+
+using namespace std;
+
+#define MAXTAM 4096
+
+int main(void){
+	SocketDatagrama socketS(0);
+
+   	PaqueteDatagrama paqueteRecibo(20);
+
+   	while(1){
+      		socketS.recibe(paqueteRecibo);
+		
+     	 	cout << "Mensaje recibido: " << paqueteRecibo.obtieneDatos() << endl;
+      		cout << "IP cliente: " << paqueteRecibo.obtieneDireccion() << endl;
+      		cout << "Puerto cliente: " << paqueteRecibo.obtienePuerto() << endl;
+      		cout << ";;======================================" << endl;
+		if(paqueteRecibo.obtieneDatos()[0] == 'b'){
+			system("rm myimage.jpg");
+			system("scrot myimage.jpg -u -q 10");		
+		}else if(paqueteRecibo.obtieneDatos()[0] == 'm'){
+                        system("rm myimage.jpg");
+                        system("scrot myimage.jpg -u -q 50");                
+                }else {
+                        system("rm myimage.jpg");
+                        system("scrot myimage.jpg -u -q 100");                
+                } 
+		
+   		
+		/*mandar archivo*/
+		
+  		FILE * pFile;
+		long lSize;
+		char * buffer;
+		size_t result;
+	
+		pFile = fopen ( "myimage.jpg" , "rb" );
+		if (pFile==NULL) {fputs ("File error",stderr); exit (1);}
+	
+		fseek (pFile , 0 , SEEK_END);
+		lSize = ftell (pFile);
+		rewind (pFile);
+
+		buffer = (char*) malloc (sizeof(char)*lSize);
+		if (buffer == NULL) {fputs ("Memory error",stderr); exit (2);}
+	
+		result = fread (buffer,1,lSize,pFile);
+		if (result != lSize) {fputs ("Reading error",stderr); exit (3);}
+	
+		char parte[MAXTAM];
+		int bytes = lSize;
+		int index = 0;
+		int con = 0;
+		
+		/*Enviar numero de paquetes que debe recibir*/
+		
+		int numpackets = ceil((float)lSize/(float)MAXTAM);
+		char data[1];
+		data[0] = numpackets;
+		PaqueteDatagrama enviaNum(1);
+		enviaNum.inicializaDatos(data);
+		enviaNum.inicializaIp(paqueteRecibo.obtieneDireccion());
+		enviaNum.inicializaPuerto(htons(paqueteRecibo.obtienePuerto()));
+		socketS.envia(enviaNum);
+
+		while(bytes > 0){
+			con++;
+			int tam = 0;
+			for(int i = 0; i<MAXTAM; i++,tam++){
+				if(index == lSize){ break;}
+				parte[i] = buffer[index++];
+			}
+			bytes -= tam;
+			//fwrite (parte , sizeof(char), tam, output);
+			PaqueteDatagrama paqueteEnvio(tam);
+			paqueteEnvio.inicializaDatos(parte);
+			paqueteEnvio.inicializaIp(paqueteRecibo.obtieneDireccion());
+      			paqueteEnvio.inicializaPuerto(htons(paqueteRecibo.obtienePuerto()));
+		
+      			socketS.envia(paqueteEnvio);
+      			//cout << "Ya lo envie, hehe." << endl;
+			PaqueteDatagrama confirm(20);
+			socketS.recibe(confirm);
+      			
+			
+		}
+		// terminate
+		fclose (pFile);
+		free (buffer);
+   	}
+   	return 0;
+}
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*serverHTTP.cpp*/
+#define MG_ENABLE_HTTP_STREAMING_MULTIPART 1
+#include "mongoose.h"
+#include <stdio.h>
+#include <iostream>
+#include <string.h>
+#include "PaqueteDatagrama.h"
+#include "SocketDatagrama.h"
+#include "UDPClient.h"
+using namespace std;
+
+#define MAXTAM 4096
+
+static const char *s_http_port = "8000";
+static struct mg_serve_http_opts s_http_server_opts;
+
+UDPClient udpC(0);
+
+static void handle_size(struct mg_connection *nc, struct http_message *hm) {
+		char query[450];
+		/*Recibir todas las capturas*/
+		udpC.descargaImagenes();
+		
+		mg_get_http_var(&hm->body, "query", query,sizeof(query));
+		/*Obtiene la cadena, con los datos que debe mandar*/
+		sprintf(query, udpC.obtenerDatos());
+		printf("Cadena enviada: %s\n", query);
+
+		mg_send_head(nc,200,strlen(query), "Content-Type: text/plain");
+		mg_printf(nc, "%s", query);
+}
+
+static void ev_handler(struct mg_connection *nc, int ev, void *p) {
+	char query[256];
+ 	struct http_message *hm = (struct http_message *) p;
+
+	
+	if (ev == MG_EV_HTTP_REQUEST) {
+		if (mg_vcmp(&hm->uri, "/search") == 0) { 
+			
+			mg_get_http_var(&hm->body, "query", query,sizeof(query));
+			printf("Cadena introducida: %s\n",query);
+
+		    handle_size(nc, hm);  
+		}else{
+			mg_serve_http(nc, (struct http_message *) p, s_http_server_opts);
+		}
+	}
+
+}
+int main(int argc, char* argv[]){
+        if(argc != 5){
+                cout<<"primera_PC ultima_PC calidad tiempo_t";
+                return 0;
+        }
+	
+	udpC.inicializaObj(argv);
+	
+	struct mg_mgr mgr;
+	struct mg_connection *nc;
+	mg_mgr_init(&mgr, NULL);
+
+	printf("Starting web server on port %s\n", s_http_port);
+	nc = mg_bind(&mgr, s_http_port, ev_handler);
+	if (nc == NULL) {
+		printf("Failed to create listener\n");
+		return 1;
+	}
+	// Set up HTTP server parameters
+	mg_set_protocol_http_websocket(nc);
+	s_http_server_opts.document_root = "."; // Serve current directory
+	s_http_server_opts.enable_directory_listing = "yes";
+	for (;;) {
+		mg_mgr_poll(&mgr, 1000);
+	}
+	mg_mgr_free(&mgr);
+	return 0;
+}
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*SocketDatagrama.cpp*/
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <strings.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include "SocketDatagrama.h"
+#include "PaqueteDatagrama.h"
+
+using namespace std;
+
+SocketDatagrama::SocketDatagrama(int a){
+	s=socket(AF_INET, SOCK_DGRAM, a);
+
+	bzero((char *)&direccionLocal, sizeof(direccionLocal));
+	direccionLocal.sin_family = AF_INET;
+	direccionLocal.sin_addr.s_addr = INADDR_ANY;
+	direccionLocal.sin_port = htons(7200);
+	bind(s, (struct sockaddr *)&direccionLocal, sizeof(direccionLocal));
+
+	bzero((char *)&direccionForanea, sizeof(direccionForanea));
+	direccionForanea.sin_family = AF_INET;
+}
+
+SocketDatagrama::~SocketDatagrama(){
+	close(s);
+}
+
+int SocketDatagrama::recibe(PaqueteDatagrama &p){
+	char dat[p.obtieneLongitud()];
+	unsigned int clileng = sizeof(direccionForanea);
+	recvfrom(s, dat, p.obtieneLongitud()*sizeof(char), 0, (struct sockaddr *) &direccionForanea, &clileng);
+	p.inicializaDatos(dat);
+	char str[16];
+	inet_ntop(AF_INET, &direccionForanea.sin_addr.s_addr, str, 16);
+	p.inicializaIp(str);
+	p.inicializaPuerto(direccionForanea.sin_port);
+	return 0;
+}
+
+int SocketDatagrama::envia(PaqueteDatagrama &p){
+	inet_pton(AF_INET, p.obtieneDireccion(), &direccionForanea.sin_addr);
+	direccionForanea.sin_port = htons(p.obtienePuerto());
+	sendto(s, p.obtieneDatos(), p.obtieneLongitud() * sizeof(char), 0, (struct sockaddr *) &direccionForanea, sizeof(direccionForanea));
+	return 0;
+}
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*SocketDatagrama..h*/
+#ifndef SOCKETDATAGRAMA_H_
+#define SOCKETDATAGRAMA_H_
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <strings.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include "PaqueteDatagrama.h"
+
+class SocketDatagrama{
+	private:
+		struct sockaddr_in direccionLocal;
+		struct sockaddr_in direccionForanea;
+		int s; //ID socket
+
+	public:
+		SocketDatagrama(int a);
+		~SocketDatagrama();
+		//~SocketDatagrama();
+
+		//Recibe un paquete tipo datagrama proveniente de este socket
+		int recibe(PaqueteDatagrama &p);
+
+		//Envía un paquete tipo datagrama desde este socket
+		int envia(PaqueteDatagrama &p);
+};
+
+#endif
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*UDPClient.cpp*/
+#include "UDPClient.h"
+using namespace std;
+#define MAXTAM 4096
+UDPClient::UDPClient(int numPcs):numpcs(numPcs){
+}
+
+void UDPClient::inicializaObj(char* argv[]){
+	strcpy(opc,argv[3]);
+        int firstIp = getLastOct(argv[1]);
+        int secondIp = getLastOct(argv[2]);
+        numpcs = secondIp - firstIp + 1;
+
+        asignaIps(argv[1],numpcs,firstIp);
+
+        int t = 0;
+        for(int i = 0; argv[4][i] != 0 ;i++){
+                t = t*(10) + (argv[4][i] - '0'); 
+        }
+
+        intToS(t,numt);
+
+}
+void UDPClient::asignaIps(char* cadena, int length, int lastOct){
+	for(int i = 0; i<length; i++){
+                char ip[30];
+                int con = 0;
+                for(int i = 0; cadena[i] != 0 ;i++){
+                        if(cadena[i] == '.') con++;
+                        if(con == 3 && cadena[i] != '.'){
+                                ip[i] = 0;
+                                char num[4];
+                                intToS(lastOct,num); lastOct++;
+                                strcat(ip,num);
+                                break;
+                        }else{
+                                ip[i] = cadena[i];
+                        }
+                } 
+                strcat(ips[i],ip);
+        }
+}
+void UDPClient::inicializarCads(){
+	for(int i = 0; i<numpcs; i++){ 
+                ips[i][0] = 0;
+        }
+}
+char* UDPClient::intToS(int x, char* num){
+	string s = to_string(x);
+        char const *pchar = s.c_str();  
+        strcpy(num,pchar);
+        return num;
+}
+int UDPClient::getLastOct(char* cadena){
+	int num = 0;
+        int con = 0;
+        for(int i = 0; cadena[i] != 0 ;i++){
+                if(cadena[i] == '.') con++;
+                if(con == 3 && cadena[i] != '.'){ 
+                        num = num*(10) + (cadena[i] - '0'); 
+                }
+        }
+        return num;
+}
+void UDPClient::descargaImagenes(){
+	char num[4];
+        intToS(numpcs,num);
+        strcpy(buffer,numt);
+
+        string s = "$";
+        char separa[2];
+        char const *pchar = s.c_str();
+
+        strcpy(separa,pchar);
+        strcat(buffer,separa);
+        strcat(buffer,num);
+        strcat(buffer,separa);
+	
+	for(int i = 0; i< numpcs; i++){ 
+        	strcat(buffer,ips[i]);
+        	strcat(buffer,separa);
+        }
+
+	/*Recibir todas las capturas*/
+        for(int i = 0; i<numpcs; i++){
+        	SocketDatagrama socketC(0);
+        	PaqueteDatagrama paqueteEnvio((char*)opc, 15, ips[i], 7200);   
+        	cout << ";;======================================" << endl;
+        	cout << "Mensaje a enviar: " << paqueteEnvio.obtieneDatos() << endl;
+         	cout << "Mi IP: " << paqueteEnvio.obtieneDireccion() << endl;
+        	cout << "Mi puerto: " << paqueteEnvio.obtienePuerto() << endl;
+        	cout << ";;======================================" << endl;
+
+       		socketC.envia(paqueteEnvio);
+         	string s = to_string(i);
+         	char const *pchar = s.c_str();
+         	char name[50];
+         	int j;
+         	for( j = 0; ips[i][j] != 0; j++){
+                	if(ips[i][j] == '.') name[j] = '-';
+                	else name[j] = ips[i][j];
+                }
+          	name[j] = 0;
+
+          	strcat(name,".jpg");
+          	char sentencia[40];
+                strcpy(sentencia,"rm ");
+                strcat(sentencia,name);
+
+                system(sentencia);
+
+		FILE * output;
+                output = fopen (name, "wb");
+                int con = 0;
+                int npackets = 0;
+
+                /*recibir el numero de paquetes que voya recibir*/
+             	PaqueteDatagrama numPackets(1);
+                socketC.recibe(numPackets);
+                npackets = (int) numPackets.obtieneDatos()[0];
+                while(npackets--){
+                	PaqueteDatagrama paqueteRecibo(MAXTAM);
+                	socketC.recibe(paqueteRecibo);
+                	fwrite (paqueteRecibo.obtieneDatos() , sizeof(char), paqueteRecibo.obtieneLongitud(), output);
+
+                 	cout << "IP servidor: " << paqueteRecibo.obtieneDireccion() << endl;
+                	cout << ";;======================================" << endl;
+                	socketC.envia(paqueteEnvio);
+            	}
+		fclose (output);        
+	 }
+}
+char* UDPClient::obtenerDatos(){
+	return buffer;
+}
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*UDPClient.h*/
+#ifndef UDPCLIENT_H_
+#define UDPCLIENT_H_
+
+#include <stdio.h>
+#include <iostream>
+#include <string.h>
+#include "PaqueteDatagrama.h"
+#include "SocketDatagrama.h"
+
+class UDPClient{
+	private:
+		char buffer[450];
+		int numpcs;
+		char ips[40][30];
+		char opc[10];
+		char numt[4];
+	public:
+		UDPClient(int numPcs);
+		void inicializaObj(char* argv[]);
+		int getLastOct(char* cadena);
+		char* intToS(int x, char* num);
+		void asignaIps(char* cadena, int length, int lastOct);
+		void inicializarCads();
+		void descargaImagenes();
+		char* obtenerDatos();
+};
+
+#endif
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*jquery.min.js*/
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*mongoose.c*/
+------------------------------------------------------------------------------------------------------------------------------------------------
+/*mongoose.h*/
+------------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,6 @@
+clear > salidaComandos.txt
+gcc tiempo.c -c >>salidaComandos.txt
+
+gcc main.c tiempo.o -o main
+
+./main 3000000 < numeros10millones.txt >> salidaInsercion.txt
